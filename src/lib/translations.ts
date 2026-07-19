@@ -13,6 +13,8 @@ export interface Dict {
   languageHelper: string;
   notOpenTitle: string;
   notOpenMessage: string;
+  loadingPrograms: string;
+  chooseBatch: string;
   scheduleLabel: string;
   deadlineLabel: string;
   email: string;
@@ -63,6 +65,8 @@ export const translations: Record<LanguageCode, Dict> = {
     notOpenTitle: "Registration not currently open",
     notOpenMessage:
       "There is no HC Essentials batch currently open for registration in this language. Please check back later.",
+    loadingPrograms: "Checking available programs...",
+    chooseBatch: "Choose a batch *",
     scheduleLabel: "Schedule",
     deadlineLabel: "Registration deadline",
     email: "Email *",
@@ -114,6 +118,8 @@ export const translations: Record<LanguageCode, Dict> = {
     notOpenTitle: "பதிவு தற்போது திறக்கப்படவில்லை",
     notOpenMessage:
       "இந்த மொழியில் தற்போது பதிவுக்கு திறந்திருக்கும் HC Essentials தொகுதி எதுவும் இல்லை. பிறகு மீண்டும் பார்க்கவும்.",
+    loadingPrograms: "கிடைக்கும் திட்டங்களை சரிபார்க்கிறோம்...",
+    chooseBatch: "ஒரு தொகுதியைத் தேர்ந்தெடுக்கவும் *",
     scheduleLabel: "அட்டவணை",
     deadlineLabel: "பதிவு கடைசி தேதி",
     email: "மின்னஞ்சல் *",
@@ -164,6 +170,8 @@ export const translations: Record<LanguageCode, Dict> = {
     notOpenTitle: "पंजीकरण अभी खुला नहीं है",
     notOpenMessage:
       "इस भाषा में फिलहाल कोई HC Essentials बैच पंजीकरण के लिए खुला नहीं है। कृपया बाद में देखें।",
+    loadingPrograms: "उपलब्ध कार्यक्रम जांचे जा रहे हैं...",
+    chooseBatch: "एक बैच चुनें *",
     scheduleLabel: "समय सारिणी",
     deadlineLabel: "पंजीकरण की अंतिम तिथि",
     email: "ईमेल *",
@@ -214,6 +222,8 @@ export const translations: Record<LanguageCode, Dict> = {
     notOpenTitle: "నమోదు ప్రస్తుతం తెరవలేదు",
     notOpenMessage:
       "ఈ భాషలో ప్రస్తుతం నమోదుకు తెరిచి ఉన్న HC Essentials బ్యాచ్ ఏదీ లేదు. దయచేసి తర్వాత మళ్లీ చూడండి.",
+    loadingPrograms: "అందుబాటులో ఉన్న కార్యక్రమాలను తనిఖీ చేస్తున్నాము...",
+    chooseBatch: "ఒక బ్యాచ్‌ను ఎంచుకోండి *",
     scheduleLabel: "షెడ్యూల్",
     deadlineLabel: "నమోదు గడువు తేదీ",
     email: "ఈమెయిల్ *",
@@ -264,6 +274,8 @@ export const translations: Record<LanguageCode, Dict> = {
     notOpenTitle: "ನೋಂದಣಿ ಪ್ರಸ್ತುತ ತೆರೆದಿಲ್ಲ",
     notOpenMessage:
       "ಈ ಭಾಷೆಯಲ್ಲಿ ಪ್ರಸ್ತುತ ನೋಂದಣಿಗೆ ತೆರೆದಿರುವ HC Essentials ಬ್ಯಾಚ್ ಯಾವುದೂ ಇಲ್ಲ. ದಯವಿಟ್ಟು ನಂತರ ಮತ್ತೆ ಪರಿಶೀಲಿಸಿ.",
+    loadingPrograms: "ಲಭ್ಯವಿರುವ ಕಾರ್ಯಕ್ರಮಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...",
+    chooseBatch: "ಒಂದು ಬ್ಯಾಚ್ ಆಯ್ಕೆಮಾಡಿ *",
     scheduleLabel: "ವೇಳಾಪಟ್ಟಿ",
     deadlineLabel: "ನೋಂದಣಿ ಗಡುವು",
     email: "ಇಮೇಲ್ *",

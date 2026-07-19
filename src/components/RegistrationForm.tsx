@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { BATCHES, LANGUAGES, LanguageCode } from "@/config/batches";
+import { useEffect, useState } from "react";
+import { LANGUAGES, LanguageCode } from "@/config/batches";
 import { translations } from "@/lib/translations";
+import type { OpenInstance } from "@/lib/instances";
 
 const initialFormState = {
   email: "",
@@ -33,16 +34,38 @@ export default function RegistrationForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const [instances, setInstances] = useState<OpenInstance[] | null>(null);
+  const [instancesFailed, setInstancesFailed] = useState(false);
+  const [selectedInstanceCode, setSelectedInstanceCode] = useState("");
+
+  useEffect(() => {
+    fetch("/api/instances")
+      .then((res) => res.json())
+      .then((data) => setInstances(data.instances ?? []))
+      .catch(() => setInstancesFailed(true));
+  }, []);
+
   const t = translations[(languageCode || "en") as LanguageCode];
-  const batch = languageCode ? BATCHES[languageCode] : null;
+  const matchingInstances = (instances ?? []).filter((i) => i.languageCode === languageCode);
+  const selectedInstance =
+    matchingInstances.length === 1
+      ? matchingInstances[0]
+      : matchingInstances.find((i) => i.code === selectedInstanceCode) ?? null;
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function onLanguageChange(code: LanguageCode) {
+    setLanguageCode(code);
+    setSelectedInstanceCode("");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!selectedInstance) return;
 
     const missing: string[] = [];
     if (!form.email.trim()) missing.push(t.email);
@@ -64,7 +87,7 @@ export default function RegistrationForm() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ languageCode, ...form }),
+        body: JSON.stringify({ instanceCode: selectedInstance.code, ...form }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -98,7 +121,7 @@ export default function RegistrationForm() {
       <select
         className="w-full rounded border border-slate-300 p-2 mb-1"
         value={languageCode}
-        onChange={(e) => setLanguageCode(e.target.value as LanguageCode)}
+        onChange={(e) => onLanguageChange(e.target.value as LanguageCode)}
         required
       >
         <option value="">Select</option>
@@ -112,27 +135,50 @@ export default function RegistrationForm() {
         <p className="text-sm text-slate-500 mb-6">{t.languageHelper}</p>
       )}
 
-      {languageCode && !batch?.isOpen && (
+      {languageCode && instances === null && !instancesFailed && (
+        <p className="text-slate-500 text-center">{t.loadingPrograms}</p>
+      )}
+
+      {languageCode && (instancesFailed || (instances !== null && matchingInstances.length === 0)) && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center">
           <h2 className="font-semibold text-amber-800">{t.notOpenTitle}</h2>
           <p className="mt-2 text-amber-700">{t.notOpenMessage}</p>
         </div>
       )}
 
-      {languageCode && batch?.isOpen && (
+      {languageCode && matchingInstances.length > 1 && (
+        <div className="mb-6">
+          <label className="block font-semibold mb-1">{t.chooseBatch}</label>
+          <select
+            className="w-full rounded border border-slate-300 p-2"
+            value={selectedInstanceCode}
+            onChange={(e) => setSelectedInstanceCode(e.target.value)}
+            required
+          >
+            <option value="">{t.select}</option>
+            {matchingInstances.map((inst) => (
+              <option key={inst.code} value={inst.code}>
+                {inst.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {selectedInstance && (
         <form onSubmit={handleSubmit} className="space-y-4">
-          {(batch.schedule || batch.registrationDeadline) && (
+          {(selectedInstance.schedule || selectedInstance.registrationDeadline) && (
             <div className="rounded border border-slate-200 bg-white p-4 text-sm text-slate-600">
-              {batch.schedule && (
+              {selectedInstance.schedule && (
                 <p>
                   <span className="font-semibold">{t.scheduleLabel}: </span>
-                  {batch.schedule}
+                  {selectedInstance.schedule}
                 </p>
               )}
-              {batch.registrationDeadline && (
+              {selectedInstance.registrationDeadline && (
                 <p>
                   <span className="font-semibold">{t.deadlineLabel}: </span>
-                  {batch.registrationDeadline}
+                  {selectedInstance.registrationDeadline}
                 </p>
               )}
             </div>

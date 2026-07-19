@@ -10,19 +10,25 @@ app that writes straight into the shared "HC Essentials" Supabase project.
 - **Next.js (App Router) + TypeScript + Tailwind.** One page
   ([src/app/page.tsx](src/app/page.tsx)) rendering
   [src/components/RegistrationForm.tsx](src/components/RegistrationForm.tsx),
-  a client component: pick a language → see that language's current batch →
-  fill the form → submit.
-- **No browser-side Supabase client.** The form POSTs JSON to
-  [src/app/api/register](src/app/api/register/route.ts), a server route that
-  uses the Supabase **service_role** key
-  ([src/lib/supabase-admin.ts](src/lib/supabase-admin.ts)) to write directly.
-  This mirrors the access model already in place in `heart-comm-db` (RLS is
-  enabled on every table with no policies yet, so only `service_role`
-  in server-side code can read/write) — no new RLS policies were needed.
+  a client component: pick a language → the app looks up which
+  `program_instances` are currently open for that language → fill the form →
+  submit.
+- **No browser-side Supabase client.** Both reads and writes go through
+  server routes using the Supabase **service_role** key
+  ([src/lib/supabase-admin.ts](src/lib/supabase-admin.ts)):
+  [src/app/api/instances](src/app/api/instances/route.ts) (GET, lists open
+  instances) and [src/app/api/register](src/app/api/register/route.ts)
+  (POST, writes a registration). This mirrors the access model already in
+  place in `heart-comm-db` (RLS is enabled on every table with no policies
+  yet, so only `service_role` in server-side code can read/write) — no new
+  RLS policies were needed, even for reads.
 - **Same Supabase project as `heart-comm-db`** (project "HC Essentials", ref
   `ppxlhmklrzabcgypnbqa`), same schema: `languages`, `people`, `programs`,
   `program_instances`, `registrations` (see that repo's
-  `supabase/migrations/` for full DDL — this app introduces no new tables).
+  `supabase/migrations/` for full DDL). This app added one column to that
+  shared schema: `program_instances.registration_open` (migration
+  `20260719085043_add_registration_open_flag.sql` in `heart-comm-db`) — see
+  "Opening/closing registration" below.
 
 ## Where each field goes
 
@@ -34,7 +40,7 @@ structure:
 |---|---|
 | Email, First Name, WhatsApp/Mobile, Heartfulness ID, Center, Zone, Language | `people` (upserted by normalized email) |
 | Initials, Age, Gender, "know English?", WhatsApp-group answer, the 3 consents, Comments | `registrations.answers` (JSONB) |
-| Selected language + current batch | `program_instances` (upserted by `code`, e.g. `ES15-TAMIL`) |
+| Selected program instance | `registrations.program_instance_id` (instance must already exist with `registration_open = true` — this app no longer creates or upserts instances) |
 
 Phone numbers are normalized to E.164 with the same best-effort logic as
 `heart-comm-db/scripts/import-es15-tamil.mjs`
@@ -48,17 +54,38 @@ allowed on purpose (matches the existing project convention: every form
 submission is kept, no `(person_id, program_instance_id)` uniqueness
 constraint).
 
-## Opening/closing a language's registration
+## Opening/closing registration
 
-Edit [src/config/batches.ts](src/config/batches.ts) — one entry per
-language, `isOpen: true/false`, plus the batch `code`/`name`/schedule/
-deadline shown on the form. No code or schema changes needed to open a new
-cohort or close one out; just update this file and redeploy.
+**Registration is open/closed per *instance*, not per language** — a
+language can have zero, one, or several instances open at once (e.g. a new
+batch starting while an older one is still wrapping up), so the flag lives
+on `program_instances.registration_open` in Supabase, not in this app's
+code. To open a new batch or close one out:
 
-Only **Tamil (ES15, Mar–Apr 2026)** has confirmed batch details as of
-2026-07-19, taken from the live registration form. The other four languages
-are seeded with placeholder `*-TBD` codes and `isOpen: false` — supply real
-batch details before opening them, rather than guessing.
+```sql
+-- Open a batch for registration (creating it first if it doesn't exist yet)
+insert into program_instances (program_id, code, name, language_id, mode, session_count, registration_open, metadata)
+values (
+  (select id from programs where code = 'hc_essentials'),
+  'ES16-TAMIL', 'HC Essentials ES16 (Tamil)',
+  (select id from languages where code = 'ta'),
+  'online', 8, true,
+  '{"schedule": "...", "registration_deadline": "2026-09-01"}'::jsonb
+)
+on conflict (code) do update set registration_open = true;
+
+-- Close one out
+update program_instances set registration_open = false where code = 'ES15-TAMIL';
+```
+
+`GET /api/instances` ([src/app/api/instances/route.ts](src/app/api/instances/route.ts))
+queries this live on every page load — no redeploy needed to open/close a
+batch. `metadata.schedule` / `metadata.registration_deadline` (both plain
+strings, optional) are shown on the form if present. If more than one
+instance is open for the same language at once, the form shows a "choose a
+batch" selector; with exactly one, it's auto-selected.
+
+Only **ES15 Tamil (Mar–Apr 2026)** is open as of 2026-07-19.
 
 ## Translations
 

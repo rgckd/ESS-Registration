@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { normalizeEmail, normalizePhone } from "@/lib/normalize";
-import { BATCHES, LanguageCode } from "@/config/batches";
 
 interface RegisterPayload {
-  languageCode: LanguageCode;
+  instanceCode: string;
   email: string;
   firstName: string;
   initials?: string;
@@ -37,16 +36,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const batch = BATCHES[body.languageCode];
-  if (!batch || !batch.isOpen) {
-    return NextResponse.json(
-      { error: "Registration is not currently open for this language." },
-      { status: 400 }
-    );
-  }
-
   const email = normalizeEmail(body.email ?? "");
   const missing: string[] = [];
+  if (!body.instanceCode) missing.push("instanceCode");
   if (!email) missing.push("email");
   if (!body.firstName?.trim()) missing.push("firstName");
   if (!body.phone?.trim()) missing.push("phone");
@@ -64,36 +56,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { data: lang, error: langErr } = await supabaseAdmin
-      .from("languages")
-      .select("id")
-      .eq("code", body.languageCode)
-      .single();
-    if (langErr || !lang) throw langErr ?? new Error("Unknown language code.");
 
-    const { data: program, error: progErr } = await supabaseAdmin
-      .from("programs")
-      .upsert({ code: "hc_essentials", name: "HC Essentials" }, { onConflict: "code" })
-      .select()
-      .single();
-    if (progErr || !program) throw progErr ?? new Error("Failed to resolve program.");
-
+    // Re-verify open/mode server-side rather than trusting the client's
+    // earlier GET /api/instances snapshot — it could be stale, or a request
+    // could be forged directly against this endpoint.
     const { data: instance, error: instErr } = await supabaseAdmin
       .from("program_instances")
-      .upsert(
-        {
-          program_id: program.id,
-          code: batch.code,
-          name: batch.name,
-          language_id: lang.id,
-          mode: "online",
-          session_count: batch.sessionCount,
-        },
-        { onConflict: "code" }
-      )
-      .select()
-      .single();
-    if (instErr || !instance) throw instErr ?? new Error("Failed to resolve program instance.");
+      .select("id, language_id, mode, registration_open")
+      .eq("code", body.instanceCode)
+      .maybeSingle();
+    if (instErr) throw instErr;
+    if (!instance || instance.mode !== "online" || !instance.registration_open) {
+      return NextResponse.json(
+        { error: "Registration is not currently open for this program." },
+        { status: 400 }
+      );
+    }
 
     const phone = normalizePhone(body.phone);
     const personPayload: Record<string, unknown> = {
@@ -104,7 +82,7 @@ export async function POST(req: NextRequest) {
       heartfulness_id: body.heartfulnessId?.trim() || null,
       center: body.center.trim(),
       zone: body.zone?.trim() || null,
-      preferred_language_id: lang.id,
+      preferred_language_id: instance.language_id,
     };
     if (body.phone && !phone) {
       personPayload.needs_review = true;
