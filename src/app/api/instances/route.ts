@@ -3,10 +3,15 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import type { LanguageCode } from "@/config/batches";
 import type { OpenInstance } from "@/lib/instances";
 
-// Lists program_instances currently open for registration (mode=online,
-// program=hc_essentials, registration_open=true). This is a read, but it
+// Lists program_instances currently open for registration
+// (program=hc_essentials, registration_open=true). This is a read, but it
 // still goes through the service_role client server-side rather than
 // exposing an anon key to the browser — see src/lib/supabase-admin.ts.
+//
+// No `mode` filter here: `mode` lives on `programs` now (moved there in
+// heart-comm-db migration 20260719105526_move_mode_to_programs.sql, since
+// it's a property of the program type, not the instance), and scoping to
+// `program_id` for `hc_essentials` already guarantees `mode = 'online'`.
 export async function GET() {
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -23,7 +28,6 @@ export async function GET() {
       .from("program_instances")
       .select("id, code, name, language_id, session_count, metadata")
       .eq("program_id", program.id)
-      .eq("mode", "online")
       .eq("registration_open", true);
     if (instErr) throw instErr;
 

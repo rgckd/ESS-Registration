@@ -59,14 +59,17 @@ export async function POST(req: NextRequest) {
 
     // Re-verify open/mode server-side rather than trusting the client's
     // earlier GET /api/instances snapshot — it could be stale, or a request
-    // could be forged directly against this endpoint.
+    // could be forged directly against this endpoint. `mode` lives on
+    // `programs` now, not `program_instances` (moved in heart-comm-db
+    // migration 20260719105526_move_mode_to_programs.sql), hence the embed.
     const { data: instance, error: instErr } = await supabaseAdmin
       .from("program_instances")
-      .select("id, language_id, mode, registration_open")
+      .select("id, language_id, registration_open, programs(mode)")
       .eq("code", body.instanceCode)
       .maybeSingle();
     if (instErr) throw instErr;
-    if (!instance || instance.mode !== "online" || !instance.registration_open) {
+    const program = Array.isArray(instance?.programs) ? instance.programs[0] : instance?.programs;
+    if (!instance || program?.mode !== "online" || !instance.registration_open) {
       return NextResponse.json(
         { error: "Registration is not currently open for this program." },
         { status: 400 }

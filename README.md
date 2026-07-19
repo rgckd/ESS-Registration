@@ -62,14 +62,19 @@ batch starting while an older one is still wrapping up), so the flag lives
 on `program_instances.registration_open` in Supabase, not in this app's
 code. To open a new batch or close one out:
 
+Easiest done via the **HC-Admin** dashboard (create/toggle instances there
+directly), or with SQL:
+
 ```sql
 -- Open a batch for registration (creating it first if it doesn't exist yet)
-insert into program_instances (program_id, code, name, language_id, mode, session_count, registration_open, metadata)
+-- Note: mode lives on `programs`, not `program_instances` -- hc_essentials
+-- is always 'online', so it's implied by program_id, not set here.
+insert into program_instances (program_id, code, name, language_id, session_count, registration_open, metadata)
 values (
   (select id from programs where code = 'hc_essentials'),
   'ES16-TAMIL', 'HC Essentials ES16 (Tamil)',
   (select id from languages where code = 'ta'),
-  'online', 8, true,
+  8, true,
   '{"schedule": "...", "registration_deadline": "2026-09-01"}'::jsonb
 )
 on conflict (code) do update set registration_open = true;
